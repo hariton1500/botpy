@@ -1,3 +1,4 @@
+import json
 import telebot
 from telebot.types import ReplyKeyboardRemove
 import requests
@@ -6,8 +7,10 @@ import dbm
 
 db = dbm.open(file='users', flag='c')
 
-#global mode
+global mode
 mode = 'notIn'
+global guids
+
 
 TOKEN = "5074469034:AAEfZA-kiuBPS840S66Fj2v7kJs_wKLe1QQ"
 
@@ -19,7 +22,8 @@ def start_handler(message):
     bot.send_message(chat_id, 'Вас приветствует асситент-бот EvpaNet', reply_markup=ReplyKeyboardRemove())
     if str(chat_id) in db:
         mode = 'In'
-        msg = bot.send_message(chat_id, reply_markup=m.start_markup_in_btn_show)
+        guids = json.loads(db[str(chat_id)])
+        msg = bot.send_message(chat_id, 'Меню:',reply_markup=m.start_markup_in_btn_show)
         print(db[str(chat_id)])
         bot.register_next_step_handler(msg, askCommands)
     else:
@@ -35,8 +39,12 @@ def askCommands(message):
         msg = bot.send_message(chat_id, text='Введите ID:', reply_markup=ReplyKeyboardRemove())
         bot.register_next_step_handler(msg, askId)
     
-    if text == 'показать учетные записи':
+    elif text == 'показать учетные записи':
         bot.send_message(chat_id, text=db.keys, reply_markup=ReplyKeyboardRemove())
+    
+    else:
+        msg = bot.send_message(chat_id, 'Команда не распознана')
+        bot.register_next_step_handler(msg, askCommands)
 
 def askId(message):
     chat_id = message.chat.id
@@ -45,7 +53,8 @@ def askId(message):
         msg = bot.send_message(chat_id, 'ID должно быть числом. Повторите ввод', reply_markup=ReplyKeyboardRemove())
         bot.register_next_step_handler(msg, askId)
     else:
-        id = int(text)
+        global uid
+        uid = int(text)
         msg = bot.send_message(chat_id, 'Введите номер телефона', reply_markup=ReplyKeyboardRemove())
         bot.register_next_step_handler(msg, askPhone)
 
@@ -57,10 +66,29 @@ def askPhone(message):
         bot.register_next_step_handler(msg, askPhone)
     else:
         phone = text
-        var res = register(id, phone)
+        res = register(uid, phone, chat_id)
+        if res['error']:
+            msg = bot.send_message(chat_id, 'Ошибка авторизации. ' + res['message'] + '. Повторите ввод данных')
+            bot.register_next_step_handler(msg, askId)
+        else:
+            guids = res['message']['guids']
+            print(guids)
+            mode = 'In'
+            import json
+            db[str(chat_id)] = json.dumps({'guids' : guids})
+            msg = bot.send_message(chat_id, 'Авторизация прошла успешно')
+            bot.register_next_step_handler(msg, start_handler)
 
-def register(id, phone):
-    api_url = 
+def register(uid, phone, chat_id):
+    api_url = 'https://evpanet.com/api/apk/login/user'
+    headers = {'token': str(chat_id)}
+    body = {'number': phone, 'uid': str(uid)}
+    print(body)
+    resp = requests.post(api_url, json=body, headers=headers)
+    print(resp.status_code)
+    print(resp.json())
+    return resp.json()
+
 
 def isValidPhoneNumber(text):
     if text[0] == '+' and text[1:].isdigit() and len(text)==12:
