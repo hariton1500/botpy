@@ -19,12 +19,15 @@ bot = telebot.TeleBot(TOKEN)
 @bot.message_handler(commands=['start', 'go'])
 def start_handler(message):
     chat_id = message.chat.id
-    bot.send_message(chat_id, 'Вас приветствует асситент-бот EvpaNet', reply_markup=ReplyKeyboardRemove())
+    bot.send_message(chat_id, 'Вас приветствует ассистент-бот EvpaNet', reply_markup=ReplyKeyboardRemove())
     if str(chat_id) in db:
-        mode = 'In'
-        guids = json.loads(db[str(chat_id)])
-        msg = bot.send_message(chat_id, 'Меню:',reply_markup=m.start_markup_in_btn_show)
+        print('found in db')
         print(db[str(chat_id)])
+        mode = 'In'
+        #db_text = json.loads(str(db[str(chat_id)]))
+        #print(db_text)
+        msg = bot.send_message(chat_id, 'Меню:',reply_markup=m.start_markup_in)
+        #print(guids)
         bot.register_next_step_handler(msg, askCommands)
     else:
         mode = 'notIn'
@@ -35,7 +38,7 @@ def askCommands(message):
     chat_id = message.chat.id
     text = message.text.lower()
     print('обработка команды ' + text)
-    if text == 'авторизация':
+    if text == 'авторизация' or text == 'новая авторизация':
         msg = bot.send_message(chat_id, text='Введите ID:', reply_markup=ReplyKeyboardRemove())
         bot.register_next_step_handler(msg, askId)
     
@@ -74,8 +77,8 @@ def askPhone(message):
             guids = res['message']['guids']
             print(guids)
             mode = 'In'
-            import json
             db[str(chat_id)] = json.dumps({'guids' : guids})
+            print(json.dumps({'guids' : guids}))
             msg = bot.send_message(chat_id, 'Авторизация прошла успешно')
             bot.register_next_step_handler(msg, start_handler)
 
