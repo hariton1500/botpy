@@ -1,5 +1,6 @@
 import telebot
 from telebot.types import ReplyKeyboardRemove
+import requests
 import markups as m
 import dbm
 
@@ -31,25 +32,41 @@ def askCommands(message):
     text = message.text.lower()
     print('обработка команды ' + text)
     if text == 'авторизация':
-        msg = bot.send_message(chat_id, text='Введите ID:', reply_markup=None)
+        msg = bot.send_message(chat_id, text='Введите ID:', reply_markup=ReplyKeyboardRemove())
         bot.register_next_step_handler(msg, askId)
     
     if text == 'показать учетные записи':
-        bot.send_message(chat_id, text=db.keys, reply_markup=None)
+        bot.send_message(chat_id, text=db.keys, reply_markup=ReplyKeyboardRemove())
 
 def askId(message):
     chat_id = message.chat.id
     text = message.text.lower()
     if not text.isdigit():
-        msg = bot.send_message(chat_id, 'ID должно быть числом. Повторите ввод')
+        msg = bot.send_message(chat_id, 'ID должно быть числом. Повторите ввод', reply_markup=ReplyKeyboardRemove())
         bot.register_next_step_handler(msg, askId)
     else:
-        msg = bot.send_message(chat_id, 'Введите номер телефона')
+        id = int(text)
+        msg = bot.send_message(chat_id, 'Введите номер телефона', reply_markup=ReplyKeyboardRemove())
         bot.register_next_step_handler(msg, askPhone)
 
 def askPhone(message):
     chat_id = message.chat.id
     text = message.text.lower()
-    print(text)
+    if not isValidPhoneNumber(text):
+        msg = bot.send_message(chat_id, 'Введенный номер не корректный. Нужно вводить в фрмате +7ХХХХХХХХХХ. Повторите ввод')
+        bot.register_next_step_handler(msg, askPhone)
+    else:
+        phone = text
+        var res = register(id, phone)
+
+def register(id, phone):
+    api_url = 
+
+def isValidPhoneNumber(text):
+    if text[0] == '+' and text[1:].isdigit() and len(text)==12:
+        return True
+    else:
+        return False
 
 bot.polling(none_stop=True)
+
