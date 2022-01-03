@@ -1,4 +1,5 @@
 import telebot
+from telebot.types import ReplyKeyboardRemove
 import markups as m
 import dbm
 
@@ -14,7 +15,7 @@ bot = telebot.TeleBot(TOKEN)
 @bot.message_handler(commands=['start', 'go'])
 def start_handler(message):
     chat_id = message.chat.id
-    bot.send_message(message.chat.id, 'Вас приветствует асситент-бот EvpaNet')
+    bot.send_message(chat_id, 'Вас приветствует асситент-бот EvpaNet', reply_markup=ReplyKeyboardRemove())
     if str(chat_id) in db:
         mode = 'In'
         msg = bot.send_message(chat_id, reply_markup=m.start_markup_in_btn_show)
