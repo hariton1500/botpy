@@ -4,12 +4,14 @@ from telebot.types import ReplyKeyboardRemove
 import requests
 import markups as m
 import dbm
+import models as model
 
 db = dbm.open(file='users', flag='c')
 
 global mode
 mode = 'notIn'
 global guids
+global abons
 
 
 TOKEN = "5074469034:AAEfZA-kiuBPS840S66Fj2v7kJs_wKLe1QQ"
@@ -20,11 +22,16 @@ bot = telebot.TeleBot(TOKEN)
 def start_handler(message):
     chat_id = message.chat.id
     bot.send_message(chat_id, 'Вас приветствует ассистент-бот EvpaNet', reply_markup=ReplyKeyboardRemove())
-    if str(chat_id) in db:
-        print('found in db')
-        print(db[str(chat_id)])
+    from pathlib import Path
+    if Path(str(chat_id)).is_file():#str(chat_id) in db:
+        print('found file')
+        file = open(str(chat_id), 'r')
+        guids = json.loads(file.read())
+        print(guids)
+        #db_text = db[str(chat_id)].decode("utf-8")
+        #print(db_text)
+        #print(json.loads(db_text))
         mode = 'In'
-        #db_text = json.loads(str(db[str(chat_id)]))
         #print(db_text)
         msg = bot.send_message(chat_id, 'Меню:',reply_markup=m.start_markup_in)
         #print(guids)
@@ -44,7 +51,8 @@ def askCommands(message):
     
     elif text == 'показать учетные записи':
         bot.send_message(chat_id, text=db.keys, reply_markup=ReplyKeyboardRemove())
-    
+        for guid in guids:
+
     else:
         msg = bot.send_message(chat_id, 'Команда не распознана')
         bot.register_next_step_handler(msg, askCommands)
@@ -77,9 +85,12 @@ def askPhone(message):
             guids = res['message']['guids']
             print(guids)
             mode = 'In'
-            db[str(chat_id)] = json.dumps({'guids' : guids})
-            print(json.dumps({'guids' : guids}))
-            msg = bot.send_message(chat_id, 'Авторизация прошла успешно')
+            #db[str(chat_id)] = json.dumps(guids)
+            file = open(str(chat_id), 'w')
+            file.write(json.dumps(guids))
+            file.close()
+            #print(json.dumps(guids))
+            msg = bot.send_message(chat_id, 'Авторизация прошла успешно', reply_markup=m.start_markup_in)
             bot.register_next_step_handler(msg, start_handler)
 
 def register(uid, phone, chat_id):
