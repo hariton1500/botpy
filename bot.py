@@ -10,8 +10,8 @@ db = dbm.open(file='users', flag='c')
 
 global mode
 mode = 'notIn'
-global guids
-global abons
+guids = []
+abons = []
 
 
 TOKEN = "5074469034:AAEfZA-kiuBPS840S66Fj2v7kJs_wKLe1QQ"
@@ -48,11 +48,17 @@ def askCommands(message):
     if text == 'авторизация' or text == 'новая авторизация':
         msg = bot.send_message(chat_id, text='Введите ID:', reply_markup=ReplyKeyboardRemove())
         bot.register_next_step_handler(msg, askId)
-    
     elif text == 'показать учетные записи':
         bot.send_message(chat_id, text=db.keys, reply_markup=ReplyKeyboardRemove())
         for guid in guids:
-
+            res = get_abon_data(guid, chat_id)
+            if res['error']:
+                msg = bot.send_message(chat_id, 'Ошибка полчения данных. ' + res['message'] + '. Повторите позже')
+                bot.register_next_step_handler(msg, askCommands)
+            else:
+                abons.clear()
+                abons.append(res['message']['userinfo'])
+                bot.send_message(chat_id, abon_show(abons[-1]), reply_markup=m.start_markup_in)
     else:
         msg = bot.send_message(chat_id, 'Команда не распознана')
         bot.register_next_step_handler(msg, askCommands)
@@ -103,12 +109,24 @@ def register(uid, phone, chat_id):
     print(resp.json())
     return resp.json()
 
+def get_abon_data(guid, chat_id):
+    api_url = 'https://evpanet.com/api/apk/user/info/' + guid
+    headers = {'token': str(chat_id)}
+    resp = requests.get(api_url, headers=headers)
+    return resp.json()
 
 def isValidPhoneNumber(text):
     if text[0] == '+' and text[1:].isdigit() and len(text)==12:
         return True
     else:
         return False
+
+def abon_show(abon):
+    out = '''Данные абонента ID: {}
+    ФИО: {}
+    Адрес: {}
+    '''
+    return out.format(abon['id'], abon['name'], abon['street'] + ' ' + abon['flat'])
 
 bot.polling(none_stop=True)
 
