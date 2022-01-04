@@ -1,5 +1,2 @@
-class Abon:
-    uid = 0
-    name = ''
-    
-
+guids = []
+mode = 'notIn'

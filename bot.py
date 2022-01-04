@@ -3,14 +3,14 @@ import telebot
 from telebot.types import ReplyKeyboardRemove
 import requests
 import markups as m
-import dbm
+#import dbm
 import models as model
 
-db = dbm.open(file='users', flag='c')
+#db = dbm.open(file='users', flag='c')
 
-global mode
-mode = 'notIn'
-guids = []
+#global mode
+#mode = 'notIn'
+#guids = list()
 abons = []
 
 
@@ -26,18 +26,14 @@ def start_handler(message):
     if Path(str(chat_id)).is_file():#str(chat_id) in db:
         print('found file')
         file = open(str(chat_id), 'r')
-        guids = json.loads(file.read())
-        print(guids)
-        #db_text = db[str(chat_id)].decode("utf-8")
-        #print(db_text)
-        #print(json.loads(db_text))
-        mode = 'In'
-        #print(db_text)
+        print('guids before: {}'.format(model.guids))
+        model.guids = list(json.loads(file.read()))
+        print('guids={}'.format(model.guids))
+        model.mode = 'In'
         msg = bot.send_message(chat_id, 'Меню:',reply_markup=m.start_markup_in)
-        #print(guids)
         bot.register_next_step_handler(msg, askCommands)
     else:
-        mode = 'notIn'
+        model.mode = 'notIn'
         msg = bot.send_message(chat_id, 'Нужно пройти авторизацию', reply_markup=m.start_markup_NotIn)
         bot.register_next_step_handler(msg, askCommands)
 
@@ -49,16 +45,23 @@ def askCommands(message):
         msg = bot.send_message(chat_id, text='Введите ID:', reply_markup=ReplyKeyboardRemove())
         bot.register_next_step_handler(msg, askId)
     elif text == 'показать учетные записи':
-        bot.send_message(chat_id, text=db.keys, reply_markup=ReplyKeyboardRemove())
-        for guid in guids:
+        #bot.send_message(chat_id, text=model.guids.__str__, reply_markup=ReplyKeyboardRemove())
+        #print('iterating through {}'.format(model.guids))
+        for guid in model.guids:
             res = get_abon_data(guid, chat_id)
+            #print('res={}'.format(res))
             if res['error']:
-                msg = bot.send_message(chat_id, 'Ошибка полчения данных. ' + res['message'] + '. Повторите позже')
+                msg = bot.send_message(chat_id, 'Ошибка получения данных. ' + res['message'] + '. Повторите позже')
                 bot.register_next_step_handler(msg, askCommands)
             else:
                 abons.clear()
                 abons.append(res['message']['userinfo'])
-                bot.send_message(chat_id, abon_show(abons[-1]), reply_markup=m.start_markup_in)
+                bot.send_message(chat_id, abon_show(abons[-1], False))
+        msg = bot.send_message(chat_id, 'Меню:', reply_markup=m.get_uids_buttons(abons))
+        bot.register_next_step_handler(msg, askCommands)
+    elif text in [abon['id'] for abon in abons]:
+        msg = bot.send_message(chat_id, text=abon_show(next(abon for abon in abons if abon['id'] == text), True))
+        bot.register_next_step_handler(msg, askCommands)
     else:
         msg = bot.send_message(chat_id, 'Команда не распознана')
         bot.register_next_step_handler(msg, askCommands)
@@ -121,12 +124,17 @@ def isValidPhoneNumber(text):
     else:
         return False
 
-def abon_show(abon):
+def abon_show(abon, full):
     out = '''Данные абонента ID: {}
     ФИО: {}
     Адрес: {}
-    '''
-    return out.format(abon['id'], abon['name'], abon['street'] + ' ' + abon['flat'])
+    '''.format(abon['id'], abon['name'], abon['street'] + ' ' + abon['flat'])
+    if full:
+        out += '''Баланс: {}
+        Дата окончания срока действия пакета: {}
+        Тариф: {} ({}) руб.
+        '''.format(abon['extra_account'], abon['packet_end'], abon['tarif_name'], abon['tarif_sum'])
+    return out
 
 bot.polling(none_stop=True)
 
