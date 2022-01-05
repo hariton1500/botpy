@@ -11,7 +11,7 @@ import models as model
 #global mode
 #mode = 'notIn'
 #guids = list()
-abons = []
+#abons = []
 
 
 TOKEN = "5074469034:AAEfZA-kiuBPS840S66Fj2v7kJs_wKLe1QQ"
@@ -23,7 +23,7 @@ def start_handler(message):
     chat_id = message.chat.id
     bot.send_message(chat_id, 'Вас приветствует ассистент-бот EvpaNet', reply_markup=ReplyKeyboardRemove())
     from pathlib import Path
-    if Path(str(chat_id)).is_file():#str(chat_id) in db:
+    if Path(str(chat_id)).is_file():
         print('found file')
         file = open(str(chat_id), 'r')
         print('guids before: {}'.format(model.guids))
@@ -47,6 +47,7 @@ def askCommands(message):
     elif text == 'показать учетные записи':
         #bot.send_message(chat_id, text=model.guids.__str__, reply_markup=ReplyKeyboardRemove())
         #print('iterating through {}'.format(model.guids))
+        model.abons.clear()
         for guid in model.guids:
             res = get_abon_data(guid, chat_id)
             #print('res={}'.format(res))
@@ -54,13 +55,12 @@ def askCommands(message):
                 msg = bot.send_message(chat_id, 'Ошибка получения данных. ' + res['message'] + '. Повторите позже')
                 bot.register_next_step_handler(msg, askCommands)
             else:
-                abons.clear()
-                abons.append(res['message']['userinfo'])
-                bot.send_message(chat_id, abon_show(abons[-1], False))
-        msg = bot.send_message(chat_id, 'Меню:', reply_markup=m.get_uids_buttons(abons))
+                model.abons.append(res['message']['userinfo'])
+                bot.send_message(chat_id, abon_show(model.abons[-1], False))
+        msg = bot.send_message(chat_id, 'Меню:', reply_markup=m.get_uids_buttons(model.abons))
         bot.register_next_step_handler(msg, askCommands)
-    elif text in [abon['id'] for abon in abons]:
-        msg = bot.send_message(chat_id, text=abon_show(next(abon for abon in abons if abon['id'] == text), True))
+    elif text in [abon['id'] for abon in model.abons]:
+        msg = bot.send_message(chat_id, text=abon_show(next(abon for abon in model.abons if abon['id'] == text), True))
         bot.register_next_step_handler(msg, askCommands)
     else:
         msg = bot.send_message(chat_id, 'Команда не распознана')
@@ -92,7 +92,7 @@ def askPhone(message):
             bot.register_next_step_handler(msg, askId)
         else:
             guids = res['message']['guids']
-            print(guids)
+            #print(guids)
             mode = 'In'
             #db[str(chat_id)] = json.dumps(guids)
             file = open(str(chat_id), 'w')
@@ -100,16 +100,16 @@ def askPhone(message):
             file.close()
             #print(json.dumps(guids))
             msg = bot.send_message(chat_id, 'Авторизация прошла успешно', reply_markup=m.start_markup_in)
-            bot.register_next_step_handler(msg, start_handler)
+            bot.register_next_step_handler(msg, askCommands)
 
 def register(uid, phone, chat_id):
     api_url = 'https://evpanet.com/api/apk/login/user'
     headers = {'token': str(chat_id)}
     body = {'number': phone, 'uid': str(uid)}
-    print(body)
+    #print(body)
     resp = requests.post(api_url, json=body, headers=headers)
-    print(resp.status_code)
-    print(resp.json())
+    #print(resp.status_code)
+    #print(resp.json())
     return resp.json()
 
 def get_abon_data(guid, chat_id):
@@ -125,15 +125,9 @@ def isValidPhoneNumber(text):
         return False
 
 def abon_show(abon, full):
-    out = '''Данные абонента ID: {}
-    ФИО: {}
-    Адрес: {}
-    '''.format(abon['id'], abon['name'], abon['street'] + ' ' + abon['flat'])
+    out = 'Данные абонента ID: {}\nФИО: {}\nАдрес: {}'.format(abon['id'], abon['name'], abon['street'] + ' ' + abon['flat'])
     if full:
-        out += '''Баланс: {}
-        Дата окончания срока действия пакета: {}
-        Тариф: {} ({}) руб.
-        '''.format(abon['extra_account'], abon['packet_end'], abon['tarif_name'], abon['tarif_sum'])
+        out += '\nБаланс: {}\nДата окончания срока действия пакета: {}\nТариф: {} ({}) руб.\n'.format(abon['extra_account'], abon['packet_end'], abon['tarif_name'], abon['tarif_sum'])
     return out
 
 bot.polling(none_stop=True)
