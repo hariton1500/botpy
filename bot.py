@@ -1,6 +1,6 @@
 import json
 import telebot
-from telebot.types import ReplyKeyboardRemove
+from telebot.types import KeyboardButton, ReplyKeyboardRemove
 import requests
 import markups as m
 #import dbm
@@ -26,15 +26,17 @@ def start_handler(message):
     if Path(str(chat_id)).is_file():
         print('found file')
         file = open(str(chat_id), 'r')
-        print('guids before: {}'.format(model.guids))
-        model.guids = list(json.loads(file.read()))
-        print('guids={}'.format(model.guids))
-        model.mode = 'In'
+        #print('guids before: {}'.format(model.abonents[str(chat_id)]['guids_list']))
+        #model.guids = list(json.loads(file.read()))
+        model.abonents[str(chat_id)] = {}
+        model.abonents[str(chat_id)]['guids_list'] = list(json.loads(file.read()))
+        print('guids={}'.format(model.abonents[str(chat_id)]['guids_list']))
+        #model.mode = 'In'
         msg = bot.send_message(chat_id, 'Меню:',reply_markup=m.start_markup_in)
         bot.register_next_step_handler(msg, askCommands)
     else:
         model.mode = 'notIn'
-        msg = bot.send_message(chat_id, 'Нужно пройти авторизацию', reply_markup=m.start_markup_NotIn)
+        msg = bot.send_message(chat_id, 'Авторизация', reply_markup=m.start_markup_NotIn)
         bot.register_next_step_handler(msg, askCommands)
 
 def askCommands(message):
@@ -45,22 +47,21 @@ def askCommands(message):
         msg = bot.send_message(chat_id, text='Введите ID:', reply_markup=ReplyKeyboardRemove())
         bot.register_next_step_handler(msg, askId)
     elif text == 'показать учетные записи':
-        #bot.send_message(chat_id, text=model.guids.__str__, reply_markup=ReplyKeyboardRemove())
-        #print('iterating through {}'.format(model.guids))
-        model.abons.clear()
-        for guid in model.guids:
+        model.abonents[str(chat_id)]['abons_list'] = []
+        for guid in model.abonents[str(chat_id)]['guids_list']:
             res = get_abon_data(guid, chat_id)
             #print('res={}'.format(res))
             if res['error']:
                 msg = bot.send_message(chat_id, 'Ошибка получения данных. ' + res['message'] + '. Повторите позже')
                 bot.register_next_step_handler(msg, askCommands)
             else:
-                model.abons.append(res['message']['userinfo'])
-                bot.send_message(chat_id, abon_show(model.abons[-1], False))
-        msg = bot.send_message(chat_id, 'Меню:', reply_markup=m.get_uids_buttons(model.abons))
+                model.abonents[str(chat_id)]['abon'] = res['message']['userinfo']
+                model.abonents[str(chat_id)]['abons_list'].append(model.abonents[str(chat_id)]['abon'])
+                bot.send_message(chat_id, abon_show(model.abonents[str(chat_id)]['abon'], False))
+        msg = bot.send_message(chat_id, 'Показать детально - отправьте номер ID:', reply_markup=m.get_uids_buttons(model.abons).add(KeyboardButton(text='Предыдущее меню')))
         bot.register_next_step_handler(msg, askCommands)
-    elif text in [abon['id'] for abon in model.abons]:
-        msg = bot.send_message(chat_id, text=abon_show(next(abon for abon in model.abons if abon['id'] == text), True))
+    elif text in [abon['id'] for abon in model.abonents[str(chat_id)]['abons_list']]:
+        msg = bot.send_message(chat_id, text=abon_show(next(abon for abon in model.abonents[str(chat_id)]['abons_list'] if abon['id'] == text), True))
         bot.register_next_step_handler(msg, askCommands)
     else:
         msg = bot.send_message(chat_id, 'Команда не распознана')
@@ -91,12 +92,12 @@ def askPhone(message):
             msg = bot.send_message(chat_id, 'Ошибка авторизации. ' + res['message'] + '. Повторите ввод данных')
             bot.register_next_step_handler(msg, askId)
         else:
-            guids = res['message']['guids']
+            model.abonents[str(chat_id)]['guids_list'] = res['message']['guids']
             #print(guids)
             mode = 'In'
             #db[str(chat_id)] = json.dumps(guids)
             file = open(str(chat_id), 'w')
-            file.write(json.dumps(guids))
+            file.write(json.dumps(model.abonents[str(chat_id)]['guids_list']))
             file.close()
             #print(json.dumps(guids))
             msg = bot.send_message(chat_id, 'Авторизация прошла успешно', reply_markup=m.start_markup_in)

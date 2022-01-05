@@ -1,3 +1,4 @@
-guids = []
-mode = 'notIn'
+#guids = []
+#mode = 'notIn'
 abons = []
+abonents = {}
