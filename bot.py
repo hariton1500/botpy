@@ -24,7 +24,7 @@ def start_handler(message):
         print('guids={}'.format(model.abonents[str(chat_id)]['guids_list']))
         bot.send_message(chat_id, 'Ваши учетные записи:')
         get_uids_data(chat_id, True)
-        msg = bot.send_message(chat_id, text='\nДоступные команды:\n1. Авторизация - пройти новую авторизацию (для тех у кого много разных учетных записей)\n2. Показать учетные записи - отобразит краткий список учетных записей\n3. ID - покажет данные учетной записи более детально', reply_markup=m.markup_in)
+        msg = bot.send_message(chat_id, text=model.Menu.main, reply_markup=m.markup_in)
         bot.register_next_step_handler(msg, askCommands)
     else:
         model.mode = 'notIn'
@@ -36,7 +36,10 @@ def askCommands(message):
     chat_id = message.chat.id
     text = message.text.lower()
     print('обработка команды ' + text)
-    if text == 'авторизация' or text == 'новая авторизация' or text == '/reg':
+    if text == 'отмена':
+        msg = bot.send_message(chat_id, text=model.Menu.main, reply_markup=m.markup_in)
+        bot.register_next_step_handler(msg, askCommands)
+    elif text == 'авторизация' or text == 'новая авторизация' or text == '/reg':
         msg = bot.send_message(chat_id, text='Введите ID:', reply_markup=ReplyKeyboardRemove())
         bot.register_next_step_handler(msg, askId)
     elif text == 'показать учетные записи' or text == 'кратко':
@@ -59,10 +62,18 @@ def askCommands(message):
 def askSum(message):
     chat_id = message.chat.id
     text = message.text.lower()
-    if text.isdigit():
-        url = 'https://paymaster.ru/payment/init?LMI_MERCHANT_ID=95005d6e-a21d-492a-a4c5-c39773020dd3&LMI_PAYMENT_AMOUNT=' + str(text) + '&LMI_CURRENCY=RUB&LMI_PAYMENT_NO=' + str(model.abonents[str(chat_id)]['selected_id']) + '&LMI_PAYMENT_DESC=%D0%9F%D0%BE%D0%BF%D0%BE%D0%BB%D0%BD%D0%B5%D0%BD%D0%B8%D0%B5%20EvpaNet%20ID%20' + model.abonents[str(chat_id)]['selected_id']
-        msg = bot.send_message(chat_id, text='Нажмите для перехода по ссылке: [URL](' + url + ')', parse_mode='markdown')
+    if text == 'отмена':
+        msg = bot.send_message(chat_id, text=model.Menu.main, reply_markup=m.markup_in)
         bot.register_next_step_handler(msg, askCommands)
+    elif text.isdigit():
+        selected_id = model.abonents[str(chat_id)]['selected_id']
+        guid = model.abonents[str(chat_id)]['guids_list'][model.abonents[str(chat_id)]['abons_list'].index(next(abon for abon in model.abonents[str(chat_id)]['abons_list'] if abon['id'] == selected_id))]
+        res = get_payment_id(guid, chat_id)
+        #print(res)
+        if (not res['error']):
+            url = 'https://paymaster.ru/payment/init?LMI_MERCHANT_ID=95005d6e-a21d-492a-a4c5-c39773020dd3&LMI_PAYMENT_AMOUNT=' + str(text) + '&LMI_CURRENCY=RUB&LMI_PAYMENT_NO=' + str(res['message']['payment_id']) + '&LMI_PAYMENT_DESC=%D0%9F%D0%BE%D0%BF%D0%BE%D0%BB%D0%BD%D0%B5%D0%BD%D0%B8%D0%B5%20EvpaNet%20ID%20' + model.abonents[str(chat_id)]['selected_id']
+            msg = bot.send_message(chat_id, text='Нажмите для перехода по ссылке: [URL](' + url + ')', parse_mode='markdown')
+            bot.register_next_step_handler(msg, askCommands)
     else:
         msg = bot.send_message(chat_id, text='Нужно ввести сумму. Повторите ввод')
         bot.register_next_step_handler(msg, askSum)
@@ -70,7 +81,10 @@ def askSum(message):
 def askId(message):
     chat_id = message.chat.id
     text = message.text.lower()
-    if not text.isdigit():
+    if text == 'отмена':
+        msg = bot.send_message(chat_id, text=model.Menu.main, reply_markup=m.markup_in)
+        bot.register_next_step_handler(msg, askCommands)
+    elif not text.isdigit():
         msg = bot.send_message(chat_id, 'ID должно быть числом. Повторите ввод', reply_markup=ReplyKeyboardRemove())
         bot.register_next_step_handler(msg, askId)
     else:
@@ -82,7 +96,10 @@ def askId(message):
 def askPhone(message):
     chat_id = message.chat.id
     text = message.text.lower()
-    if not isValidPhoneNumber(text):
+    if text == 'отмена':
+        msg = bot.send_message(chat_id, text=model.Menu.main, reply_markup=m.markup_in)
+        bot.register_next_step_handler(msg, askCommands)
+    elif not isValidPhoneNumber(text):
         msg = bot.send_message(chat_id, 'Введенный номер не корректный. Нужно вводить в фрмате +7ХХХХХХХХХХ. Повторите ввод')
         bot.register_next_step_handler(msg, askPhone)
     else:
@@ -114,6 +131,13 @@ def get_abon_data(guid, chat_id):
     api_url = 'https://evpanet.com/api/apk/user/info/' + guid
     headers = {'token': str(chat_id)}
     resp = requests.get(api_url, headers=headers)
+    return resp.json()
+
+def get_payment_id(guid, chat_id):
+    api_url = 'https://evpanet.com/api/apk/payment'
+    headers = {'token': str(chat_id)}
+    body = {'guid': guid}
+    resp = requests.post(api_url, headers=headers, json=body)
     return resp.json()
 
 def get_uids_data(chat_id, brief):
