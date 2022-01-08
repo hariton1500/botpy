@@ -11,10 +11,12 @@ start_markup_NotIn_btn = types.KeyboardButton(text='Авторизация')
 start_markup_NotIn.add(start_markup_NotIn_btn)
 
 def get_uids_buttons(abons):
-    uids_markup = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
-    #btns = []
+    uids_markup = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
+    btns = []
     for abon in abons:
-        #btns.append(types.KeyboardButton(text=abon['id']))
-        uids_markup.add(types.KeyboardButton(text=abon['id']))
+        btns.append(types.KeyboardButton(text=abon['id']))
+        #uids_markup.add(types.KeyboardButton(text=abon['id']))
+    uids_markup.row(btns)
+    uids_markup.add(start_markup_in)
     #uids_markup.add(btns)
     return uids_markup

@@ -3,16 +3,7 @@ import telebot
 from telebot.types import KeyboardButton, ReplyKeyboardRemove
 import requests
 import markups as m
-#import dbm
 import models as model
-
-#db = dbm.open(file='users', flag='c')
-
-#global mode
-#mode = 'notIn'
-#guids = list()
-#abons = []
-
 
 TOKEN = "5074469034:AAEfZA-kiuBPS840S66Fj2v7kJs_wKLe1QQ"
 
@@ -21,18 +12,17 @@ bot = telebot.TeleBot(TOKEN)
 @bot.message_handler(commands=['start', 'go'])
 def start_handler(message):
     chat_id = message.chat.id
-    bot.send_message(chat_id, 'Вас приветствует ассистент-бот EvpaNet', reply_markup=ReplyKeyboardRemove())
+    bot.send_message(chat_id, 'Вас приветствует бот EvpaNet. С его помощью можно легко увидеть информацию о состоянии учетной записи, а еще, он будет присылать уведомления о скором окончании срока действия пакета интернет и другие оповещения.', reply_markup=ReplyKeyboardRemove())
+    model.abonents[str(chat_id)] = {}
+    model.abonents[str(chat_id)]['abons_list'] = []
     from pathlib import Path
     if Path(str(chat_id)).is_file():
         print('found file')
         file = open(str(chat_id), 'r')
-        #print('guids before: {}'.format(model.abonents[str(chat_id)]['guids_list']))
-        #model.guids = list(json.loads(file.read()))
-        model.abonents[str(chat_id)] = {}
         model.abonents[str(chat_id)]['guids_list'] = list(json.loads(file.read()))
+        file.close()
         print('guids={}'.format(model.abonents[str(chat_id)]['guids_list']))
-        #model.mode = 'In'
-        msg = bot.send_message(chat_id, 'Меню:',reply_markup=m.start_markup_in)
+        msg = bot.send_message(chat_id, 'Вы уже авторизованы.\nВаши учетные записи: ' + str(model.abonents[str(chat_id)]['guids_list']) + '\nДоступные команды:\n1. Авторизация - пройти новую авторизацию (для тех у кого много разных учетных записей)\n2. Показать учетные записи - отобразит краткий список учетных записей\n3. ID - покажет данные учетной записи более детально', reply_markup=m.start_markup_in)
         bot.register_next_step_handler(msg, askCommands)
     else:
         model.mode = 'notIn'
@@ -43,14 +33,12 @@ def askCommands(message):
     chat_id = message.chat.id
     text = message.text.lower()
     print('обработка команды ' + text)
-    if text == 'авторизация' or text == 'новая авторизация':
+    if text == 'авторизация' or text == 'новая авторизация' or text == '/reg':
         msg = bot.send_message(chat_id, text='Введите ID:', reply_markup=ReplyKeyboardRemove())
         bot.register_next_step_handler(msg, askId)
     elif text == 'показать учетные записи':
-        model.abonents[str(chat_id)]['abons_list'] = []
         for guid in model.abonents[str(chat_id)]['guids_list']:
             res = get_abon_data(guid, chat_id)
-            #print('res={}'.format(res))
             if res['error']:
                 msg = bot.send_message(chat_id, 'Ошибка получения данных. ' + res['message'] + '. Повторите позже')
                 bot.register_next_step_handler(msg, askCommands)
@@ -64,7 +52,7 @@ def askCommands(message):
         msg = bot.send_message(chat_id, text=abon_show(next(abon for abon in model.abonents[str(chat_id)]['abons_list'] if abon['id'] == text), True))
         bot.register_next_step_handler(msg, askCommands)
     else:
-        msg = bot.send_message(chat_id, 'Команда не распознана')
+        msg = bot.send_message(chat_id, 'Команда не распознана. Доступные команды: \nID - показать данные учетной записи\nАвторизация - пройти авторизацию')
         bot.register_next_step_handler(msg, askCommands)
 
 def askId(message):
@@ -93,13 +81,10 @@ def askPhone(message):
             bot.register_next_step_handler(msg, askId)
         else:
             model.abonents[str(chat_id)]['guids_list'] = res['message']['guids']
-            #print(guids)
             mode = 'In'
-            #db[str(chat_id)] = json.dumps(guids)
             file = open(str(chat_id), 'w')
             file.write(json.dumps(model.abonents[str(chat_id)]['guids_list']))
             file.close()
-            #print(json.dumps(guids))
             msg = bot.send_message(chat_id, 'Авторизация прошла успешно', reply_markup=m.start_markup_in)
             bot.register_next_step_handler(msg, askCommands)
 
