@@ -12,7 +12,6 @@ bot = telebot.TeleBot(TOKEN)
 @bot.message_handler(commands=['start', 'go'])
 def start_handler(message):
     chat_id = message.chat.id
-    bot.send_message(chat_id, 'Вас приветствует бот EvpaNet. С его помощью можно легко увидеть информацию о состоянии учетной записи, а еще, он будет присылать уведомления о скором окончании срока действия пакета интернет и другие оповещения.', reply_markup=ReplyKeyboardRemove())
     model.abonents[str(chat_id)] = {}
     model.abonents[str(chat_id)]['abons_list'] = []
     from pathlib import Path
@@ -22,11 +21,14 @@ def start_handler(message):
         model.abonents[str(chat_id)]['guids_list'] = list(json.loads(file.read()))
         file.close()
         print('guids={}'.format(model.abonents[str(chat_id)]['guids_list']))
-        msg = bot.send_message(chat_id, 'Вы уже авторизованы.\nВаши учетные записи: ' + str(model.abonents[str(chat_id)]['guids_list']) + '\nДоступные команды:\n1. Авторизация - пройти новую авторизацию (для тех у кого много разных учетных записей)\n2. Показать учетные записи - отобразит краткий список учетных записей\n3. ID - покажет данные учетной записи более детально', reply_markup=m.start_markup_in)
+        bot.send_message(chat_id, 'Ваши учетные записи:')
+        get_uids_data(chat_id, True)
+        msg = bot.send_message(chat_id, text='\nДоступные команды:\n1. Авторизация - пройти новую авторизацию (для тех у кого много разных учетных записей)\n2. Показать учетные записи - отобразит краткий список учетных записей\n3. ID - покажет данные учетной записи более детально', reply_markup=m.markup_in)
         bot.register_next_step_handler(msg, askCommands)
     else:
         model.mode = 'notIn'
-        msg = bot.send_message(chat_id, 'Авторизация', reply_markup=m.start_markup_NotIn)
+        bot.send_message(chat_id, 'Вас приветствует бот EvpaNet. С его помощью можно легко увидеть информацию о состоянии учетной записи, а еще, он будет присылать уведомления о скором окончании срока действия пакета интернет и другие оповещения.', reply_markup=ReplyKeyboardRemove())
+        msg = bot.send_message(chat_id, 'Для пользования сервисом Вам необходимо авторизоваться. Понадобится указать ID и привязанный к нему номер телефона. В результате будут добавлены все ID к которым привязан этот номер телефона.', reply_markup=m.start_markup_NotIn)
         bot.register_next_step_handler(msg, askCommands)
 
 def askCommands(message):
@@ -36,20 +38,17 @@ def askCommands(message):
     if text == 'авторизация' or text == 'новая авторизация' or text == '/reg':
         msg = bot.send_message(chat_id, text='Введите ID:', reply_markup=ReplyKeyboardRemove())
         bot.register_next_step_handler(msg, askId)
-    elif text == 'показать учетные записи':
-        for guid in model.abonents[str(chat_id)]['guids_list']:
-            res = get_abon_data(guid, chat_id)
-            if res['error']:
-                msg = bot.send_message(chat_id, 'Ошибка получения данных. ' + res['message'] + '. Повторите позже')
-                bot.register_next_step_handler(msg, askCommands)
-            else:
-                model.abonents[str(chat_id)]['abon'] = res['message']['userinfo']
-                model.abonents[str(chat_id)]['abons_list'].append(model.abonents[str(chat_id)]['abon'])
-                bot.send_message(chat_id, abon_show(model.abonents[str(chat_id)]['abon'], False))
-        msg = bot.send_message(chat_id, 'Показать детально - отправьте номер ID:', reply_markup=m.get_uids_buttons(model.abons).add(KeyboardButton(text='Предыдущее меню')))
+    elif text == 'показать учетные записи' or text == 'кратко':
+        get_uids_data(chat_id, False)
+        msg = bot.send_message(chat_id, 'Показать детально - отправьте номер ID:', reply_markup=m.markup_in)
         bot.register_next_step_handler(msg, askCommands)
     elif text in [abon['id'] for abon in model.abonents[str(chat_id)]['abons_list']]:
-        msg = bot.send_message(chat_id, text=abon_show(next(abon for abon in model.abonents[str(chat_id)]['abons_list'] if abon['id'] == text), True))
+        bot.send_message(chat_id, text=abon_show(next(abon for abon in model.abonents[str(chat_id)]['abons_list'] if abon['id'] == text), True))
+        bot.send_message(chat_id, text='Доступные команды для управления учетной записью:')
+        msg = bot.send_message(chat_id, text='1. Пополнить баланс', reply_markup=m.markup_id_menu)
+        bot.register_next_step_handler(msg, askCommands)
+    elif text == 'пополнить' or text == 'пополнить баланс':
+        msg = bot.send_message(chat_id, text='Перенаправляем для пополнения баланса...')
         bot.register_next_step_handler(msg, askCommands)
     else:
         msg = bot.send_message(chat_id, 'Команда не распознана. Доступные команды: \nID - показать данные учетной записи\nАвторизация - пройти авторизацию')
@@ -103,6 +102,20 @@ def get_abon_data(guid, chat_id):
     headers = {'token': str(chat_id)}
     resp = requests.get(api_url, headers=headers)
     return resp.json()
+
+def get_uids_data(chat_id, brief):
+    for guid in model.abonents[str(chat_id)]['guids_list']:
+        res = get_abon_data(guid, chat_id)
+        if res['error']:
+            msg = bot.send_message(chat_id, 'Ошибка получения данных. ' + res['message'] + '. Повторите позже', reply_markup=m.start_markup_NotIn)
+            bot.register_next_step_handler(msg, askCommands)
+        else:
+            model.abonents[str(chat_id)]['abon'] = res['message']['userinfo']
+            model.abonents[str(chat_id)]['abons_list'].append(model.abonents[str(chat_id)]['abon'])
+            if brief:
+                bot.send_message(chat_id, text=model.abonents[str(chat_id)]['abon']['id'])
+            else:
+                bot.send_message(chat_id, abon_show(model.abonents[str(chat_id)]['abon'], False))
 
 def isValidPhoneNumber(text):
     if text[0] == '+' and text[1:].isdigit() and len(text)==12:
