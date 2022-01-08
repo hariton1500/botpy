@@ -1,5 +1,6 @@
 import json
 import telebot
+from telebot import types
 from telebot.types import KeyboardButton, ReplyKeyboardRemove
 import requests
 import markups as m
@@ -43,16 +44,28 @@ def askCommands(message):
         msg = bot.send_message(chat_id, 'Показать детально - отправьте номер ID:', reply_markup=m.markup_in)
         bot.register_next_step_handler(msg, askCommands)
     elif text in [abon['id'] for abon in model.abonents[str(chat_id)]['abons_list']]:
+        model.abonents[str(chat_id)]['selected_id'] = text
         bot.send_message(chat_id, text=abon_show(next(abon for abon in model.abonents[str(chat_id)]['abons_list'] if abon['id'] == text), True))
         bot.send_message(chat_id, text='Доступные команды для управления учетной записью:')
         msg = bot.send_message(chat_id, text='1. Пополнить баланс', reply_markup=m.markup_id_menu)
         bot.register_next_step_handler(msg, askCommands)
     elif text == 'пополнить' or text == 'пополнить баланс':
-        msg = bot.send_message(chat_id, text='Перенаправляем для пополнения баланса...')
-        bot.register_next_step_handler(msg, askCommands)
+        msg = bot.send_message(chat_id, text='Введите сумму:')
+        bot.register_next_step_handler(msg, askSum)
     else:
         msg = bot.send_message(chat_id, 'Команда не распознана. Доступные команды: \nID - показать данные учетной записи\nАвторизация - пройти авторизацию')
         bot.register_next_step_handler(msg, askCommands)
+
+def askSum(message):
+    chat_id = message.chat.id
+    text = message.text.lower()
+    if text.isdigit():
+        url = 'https://paymaster.ru/payment/init?LMI_MERCHANT_ID=95005d6e-a21d-492a-a4c5-c39773020dd3&LMI_PAYMENT_AMOUNT=' + str(text) + '&LMI_CURRENCY=RUB&LMI_PAYMENT_NO=' + str(model.abonents[str(chat_id)]['selected_id']) + '&LMI_PAYMENT_DESC=%D0%9F%D0%BE%D0%BF%D0%BE%D0%BB%D0%BD%D0%B5%D0%BD%D0%B8%D0%B5%20EvpaNet%20ID%20' + model.abonents[str(chat_id)]['selected_id']
+        msg = bot.send_message(chat_id, text='Нажмите для перехода по ссылке: [URL](' + url + ')', parse_mode='markdown')
+        bot.register_next_step_handler(msg, askCommands)
+    else:
+        msg = bot.send_message(chat_id, text='Нужно ввести сумму. Повторите ввод')
+        bot.register_next_step_handler(msg, askSum)
 
 def askId(message):
     chat_id = message.chat.id
