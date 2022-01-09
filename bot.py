@@ -55,8 +55,20 @@ def askCommands(message):
     elif text == 'пополнить' or text == 'пополнить баланс':
         msg = bot.send_message(chat_id, text='Введите сумму:')
         bot.register_next_step_handler(msg, askSum)
+    elif text == 'обращение' or text == 'жалоба' or text == 'оставить обращение':
+        msg = bot.send_message(chat_id, text='Введите текст обращения:')
+        bot.register_next_step_handler(msg, askText)
     else:
         msg = bot.send_message(chat_id, 'Команда не распознана. Доступные команды: \nID - показать данные учетной записи\nАвторизация - пройти авторизацию')
+        bot.register_next_step_handler(msg, askCommands)
+
+def askText(message):
+    chat_id = message.chat.id
+    selected_id = model.abonents[str(chat_id)]['selected_id']
+    guid = model.abonents[str(chat_id)]['guids_list'][model.abonents[str(chat_id)]['abons_list'].index(next(abon for abon in model.abonents[str(chat_id)]['abons_list'] if abon['id'] == selected_id))]
+    res = send_remont(guid, chat_id, message.text)
+    if (not res['error']):
+        msg = bot.send_message(chat_id, text=str(res['message']), reply_markup=m.markup_id_menu)
         bot.register_next_step_handler(msg, askCommands)
 
 def askSum(message):
@@ -88,8 +100,8 @@ def askId(message):
         msg = bot.send_message(chat_id, 'ID должно быть числом. Повторите ввод', reply_markup=ReplyKeyboardRemove())
         bot.register_next_step_handler(msg, askId)
     else:
-        global uid
-        uid = int(text)
+        model.abonents[str(chat_id)]['uid'] = int(text)
+        #uid = int(text)
         msg = bot.send_message(chat_id, 'Введите номер телефона', reply_markup=ReplyKeyboardRemove())
         bot.register_next_step_handler(msg, askPhone)
 
@@ -103,10 +115,10 @@ def askPhone(message):
         msg = bot.send_message(chat_id, 'Введенный номер не корректный. Нужно вводить в фрмате +7ХХХХХХХХХХ. Повторите ввод')
         bot.register_next_step_handler(msg, askPhone)
     else:
-        phone = text
-        res = register(uid, phone, chat_id)
+        model.abonents[str(chat_id)]['phone'] = text
+        res = register(model.abonents[str(chat_id)]['uid'], model.abonents[str(chat_id)]['phone'], chat_id)
         if res['error']:
-            msg = bot.send_message(chat_id, 'Ошибка авторизации. ' + res['message'] + '. Повторите ввод данных')
+            msg = bot.send_message(chat_id, 'Ошибка авторизации. ' + res['message'] + '. Повторите ввод данных', reply_markup=m.start_markup_NotIn)
             bot.register_next_step_handler(msg, askId)
         else:
             model.abonents[str(chat_id)]['guids_list'] = res['message']['guids']
@@ -114,7 +126,7 @@ def askPhone(message):
             file = open(str(chat_id), 'w')
             file.write(json.dumps(model.abonents[str(chat_id)]['guids_list']))
             file.close()
-            msg = bot.send_message(chat_id, 'Авторизация прошла успешно', reply_markup=m.start_markup_in)
+            msg = bot.send_message(chat_id, 'Авторизация прошла успешно', reply_markup=m.markup_in)
             bot.register_next_step_handler(msg, askCommands)
 
 def register(uid, phone, chat_id):
@@ -137,6 +149,13 @@ def get_payment_id(guid, chat_id):
     api_url = 'https://evpanet.com/api/apk/payment'
     headers = {'token': str(chat_id)}
     body = {'guid': guid}
+    resp = requests.post(api_url, headers=headers, json=body)
+    return resp.json()
+
+def send_remont(guid, chat_id, text):
+    api_url = 'https://evpanet.com/api/apk/support/request'
+    headers = {'token': str(chat_id)}
+    body = {'message': text, 'guid': guid}
     resp = requests.post(api_url, headers=headers, json=body)
     return resp.json()
 

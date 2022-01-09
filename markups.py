@@ -23,6 +23,7 @@ start_markup_NotIn.add(start_markup_NotIn_btn)
 
 markup_id_menu = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
 markup_id_menu_pay = types.KeyboardButton(text='Пополнить баланс')
-markup_id_menu.add(markup_id_menu_pay, start_markup_in_btn_cancel, start_markup_in_btn_show)
+markup_id_menu_message = types.KeyboardButton(text='Оставить обращение')
+markup_id_menu.add(markup_id_menu_pay, markup_id_menu_message, start_markup_in_btn_cancel, start_markup_in_btn_show)
 
 
