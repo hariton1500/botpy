@@ -34,7 +34,10 @@ def start_handler(message):
 
 def askCommands(message):
     chat_id = message.chat.id
-    text = message.text.lower()
+    try:
+        text = message.text.lower()
+    except:
+        text = ''
     print('обработка команды ' + text)
     if text == 'отмена':
         msg = bot.send_message(chat_id, text=model.Menu.main, reply_markup=m.markup_in)
