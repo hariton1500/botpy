@@ -56,7 +56,7 @@ def askCommands(message):
         msg = bot.send_message(chat_id, text='1. Пополнить баланс', reply_markup=m.markup_id_menu)
         bot.register_next_step_handler(msg, askCommands)
     elif text == 'пополнить' or text == 'пополнить баланс':
-        msg = bot.send_message(chat_id, text='Введите сумму:')
+        msg = bot.send_message(chat_id, text='Введите сумму:', reply_markup=m.markup_reply)
         bot.register_next_step_handler(msg, askSum)
     elif text == 'обращение' or text == 'жалоба' or text == 'оставить обращение':
         msg = bot.send_message(chat_id, text='Введите текст обращения:')
@@ -188,5 +188,6 @@ def abon_show(abon, full):
         out += '\nБаланс: {}\nДата окончания срока действия пакета: {}\nТариф: {} ({}) руб.\n'.format(abon['extra_account'], abon['packet_end'], abon['tarif_name'], abon['tarif_sum'])
     return out
 
-bot.polling(none_stop=True)
+#bot.polling(none_stop=True)
+#bot.infinity_polling(timeout=40, long_polling_timeout=40)
 
